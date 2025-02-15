@@ -25,7 +25,7 @@ const ResponseView: React.FC<ResponseViewProps> = ({ response }) => {
         <span>{new Date(response.timestamp).toLocaleTimeString()}</span>
       </div>
       <div className="response-text text-sm">
-        <div className="text-primary-foreground/60">> {response.command}</div>
+        <div className="text-primary-foreground/60">{`>`} {response.command}</div>
         <div className="mt-1 font-medium">{formatResult(response.result)}</div>
       </div>
     </div>
