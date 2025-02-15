@@ -43,6 +43,26 @@ const Index = () => {
           if (args.length !== 1) throw new Error('TTL requires exactly one key');
           result = redis.ttl(args[0]);
           break;
+        case 'LPUSH':
+          if (args.length < 2) throw new Error('LPUSH requires key and at least one value');
+          result = redis.lpush(args[0], ...args.slice(1));
+          break;
+        case 'RPUSH':
+          if (args.length < 2) throw new Error('RPUSH requires key and at least one value');
+          result = redis.rpush(args[0], ...args.slice(1));
+          break;
+        case 'LPOP':
+          if (args.length !== 1) throw new Error('LPOP requires exactly one key');
+          result = redis.lpop(args[0]);
+          break;
+        case 'RPOP':
+          if (args.length !== 1) throw new Error('RPOP requires exactly one key');
+          result = redis.rpop(args[0]);
+          break;
+        case 'LLEN':
+          if (args.length !== 1) throw new Error('LLEN requires exactly one key');
+          result = redis.llen(args[0]);
+          break;
         default:
           throw new Error(`Unknown command: ${command}`);
       }

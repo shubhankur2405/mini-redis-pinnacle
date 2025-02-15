@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 interface CommandExample {
@@ -32,6 +31,30 @@ const commands: CommandExample[] = [
     description: 'Get time-to-live for a key in seconds',
     example: 'SET token abc EX 60',
     output: 'OK (then try: TTL token)'
+  },
+  {
+    command: 'LPUSH',
+    description: 'Push values to the start of a list',
+    example: 'LPUSH mylist value1 value2',
+    output: '2'
+  },
+  {
+    command: 'RPUSH',
+    description: 'Push values to the end of a list',
+    example: 'RPUSH mylist value3 value4',
+    output: '4'
+  },
+  {
+    command: 'LPOP',
+    description: 'Remove and return the first element of a list',
+    example: 'LPOP mylist',
+    output: 'value1'
+  },
+  {
+    command: 'RPOP',
+    description: 'Remove and return the last element of a list',
+    example: 'RPOP mylist',
+    output: 'value4'
   }
 ];
 
