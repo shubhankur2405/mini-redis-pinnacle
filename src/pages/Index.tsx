@@ -3,6 +3,7 @@ import { useState } from 'react';
 import CommandInput from '@/components/CommandInput';
 import ResponseView from '@/components/ResponseView';
 import CommandHistory from '@/components/CommandHistory';
+import UsageGuide from '@/components/UsageGuide';
 import { redis } from '@/lib/redis';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -73,6 +74,8 @@ const Index = () => {
             A lightweight Redis-like key-value store implementation
           </p>
         </div>
+
+        <UsageGuide />
 
         <div className="grid gap-6 md:grid-cols-[2fr,1fr]">
           <div className="space-y-6">
