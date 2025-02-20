@@ -104,6 +104,8 @@ const PubSubFeature = () => {
   const [publishing, setPublishing] = React.useState(false);
   const [channel, setChannel] = React.useState("default-channel");
   const [subscribed, setSubscribed] = React.useState(false);
+  const [newMessage, setNewMessage] = React.useState("");
+  const [newChannel, setNewChannel] = React.useState("");
 
   React.useEffect(() => {
     const handleMessage = (message: string) => {
@@ -122,13 +124,17 @@ const PubSubFeature = () => {
   }, [channel, subscribed]);
 
   const publish = () => {
+    if (!newMessage.trim()) return;
     setPublishing(true);
-    const message = `Message from tab ${Math.random().toString(36).slice(2, 7)}`;
-    redis.publish(channel, message);
+    redis.publish(channel, newMessage);
+    setNewMessage("");
     setTimeout(() => setPublishing(false), 500);
   };
 
   const toggleSubscription = () => {
+    if (!subscribed && newChannel.trim()) {
+      setChannel(newChannel);
+    }
     setSubscribed(!subscribed);
     if (subscribed) {
       setMessages([]);
@@ -137,19 +143,44 @@ const PubSubFeature = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4">
-        <Button 
-          onClick={toggleSubscription}
-          variant={subscribed ? "destructive" : "default"}
-        >
-          <MessageSquare className="w-4 h-4 mr-2" />
-          {subscribed ? 'Unsubscribe' : 'Subscribe'}
-        </Button>
-        <Button onClick={publish} disabled={publishing}>
-          <MessageSquare className="w-4 h-4 mr-2" />
-          Publish Message
-        </Button>
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={newChannel}
+            onChange={(e) => setNewChannel(e.target.value)}
+            placeholder="Enter channel name"
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1"
+            disabled={subscribed}
+          />
+          <Button 
+            onClick={toggleSubscription}
+            variant={subscribed ? "destructive" : "default"}
+            disabled={!newChannel.trim() && !subscribed}
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            {subscribed ? 'Unsubscribe' : 'Subscribe'}
+          </Button>
+        </div>
+
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Enter your message"
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1"
+          />
+          <Button 
+            onClick={publish} 
+            disabled={publishing || !newMessage.trim()}
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Publish
+          </Button>
+        </div>
       </div>
+
       {subscribed && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -160,6 +191,7 @@ const PubSubFeature = () => {
           Subscribed to channel: {channel}
         </motion.div>
       )}
+
       <div className="space-y-2 max-h-48 overflow-y-auto">
         {messages.map((msg, index) => (
           <motion.div
