@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
 import { Check, RefreshCw, Database, ListOrdered, MessageSquare, SplitSquareVertical } from 'lucide-react';
+import { redis } from '@/lib/redis';
 
 const FeatureSection = ({ 
   title, 
