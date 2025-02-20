@@ -390,7 +390,7 @@ const Features = () => {
           <TabsContent value="rdb">
             <FeatureSection
               title="RDB Persistence"
-              description="Snapshot-based persistence that saves the dataset to disk at specified intervals."
+              description="Set key-value pairs and persist them to disk. After saving, you can retrieve the values using GET commands."
             >
               <RDBFeature />
             </FeatureSection>
@@ -417,7 +417,7 @@ const Features = () => {
           <TabsContent value="transactions">
             <FeatureSection
               title="Transactions"
-              description="Execute multiple commands atomically with MULTI/EXEC."
+              description="Execute multiple commands atomically using MULTI/EXEC. Queue commands and execute them all at once, or discard the transaction."
             >
               <TransactionFeature />
             </FeatureSection>
