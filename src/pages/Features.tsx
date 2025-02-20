@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -102,21 +101,64 @@ const SortedSetFeature = () => {
 const PubSubFeature = () => {
   const [messages, setMessages] = React.useState<string[]>([]);
   const [publishing, setPublishing] = React.useState(false);
+  const [channel, setChannel] = React.useState("default-channel");
+  const [subscribed, setSubscribed] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleMessage = (message: string) => {
+      setMessages(prev => [`${message}`, ...prev]);
+    };
+
+    if (subscribed) {
+      redis.subscribe(channel, handleMessage);
+    }
+
+    return () => {
+      if (subscribed) {
+        redis.unsubscribe(channel, handleMessage);
+      }
+    };
+  }, [channel, subscribed]);
 
   const publish = () => {
     setPublishing(true);
-    setTimeout(() => {
-      setMessages(prev => [`Message ${prev.length + 1}`, ...prev]);
-      setPublishing(false);
-    }, 1000);
+    const message = `Message from tab ${Math.random().toString(36).slice(2, 7)}`;
+    redis.publish(channel, message);
+    setTimeout(() => setPublishing(false), 500);
+  };
+
+  const toggleSubscription = () => {
+    setSubscribed(!subscribed);
+    if (subscribed) {
+      setMessages([]);
+    }
   };
 
   return (
     <div className="space-y-4">
-      <Button onClick={publish} disabled={publishing}>
-        <MessageSquare className="w-4 h-4 mr-2" />
-        Publish Message
-      </Button>
+      <div className="flex gap-4">
+        <Button 
+          onClick={toggleSubscription}
+          variant={subscribed ? "destructive" : "default"}
+        >
+          <MessageSquare className="w-4 h-4 mr-2" />
+          {subscribed ? 'Unsubscribe' : 'Subscribe'}
+        </Button>
+        <Button onClick={publish} disabled={publishing}>
+          <MessageSquare className="w-4 h-4 mr-2" />
+          Publish Message
+        </Button>
+      </div>
+      {subscribed && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="p-3 bg-green-500/10 text-green-600 rounded-lg"
+        >
+          Subscribed to channel: {channel}
+        </motion.div>
+      )}
       <div className="space-y-2 max-h-48 overflow-y-auto">
         {messages.map((msg, index) => (
           <motion.div

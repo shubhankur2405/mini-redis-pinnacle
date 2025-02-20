@@ -1,4 +1,3 @@
-
 type RedisValue = string | number;
 type RedisEntry = {
   value: RedisValue | RedisValue[];
@@ -6,12 +5,24 @@ type RedisEntry = {
   expiry?: number;
 };
 
+type Subscriber = (message: string) => void;
+
 class MiniRedis {
   private store: Map<string, RedisEntry>;
+  private subscribers: Map<string, Set<Subscriber>>;
+  private broadcastChannel: BroadcastChannel;
 
   constructor() {
     this.store = new Map();
+    this.subscribers = new Map();
+    this.broadcastChannel = new BroadcastChannel('redis-pubsub');
     this.cleanupExpired();
+    
+    // Listen for messages from other tabs
+    this.broadcastChannel.onmessage = (event) => {
+      const { channel, message } = event.data;
+      this.notifySubscribers(channel, message);
+    };
   }
 
   private cleanupExpired() {
@@ -23,6 +34,15 @@ class MiniRedis {
         }
       }
     }, 1000);
+  }
+
+  private notifySubscribers(channel: string, message: string) {
+    const channelSubscribers = this.subscribers.get(channel);
+    if (channelSubscribers) {
+      for (const subscriber of channelSubscribers) {
+        subscriber(message);
+      }
+    }
   }
 
   set(key: string, value: RedisValue, ttl?: number): string {
@@ -57,7 +77,6 @@ class MiniRedis {
     return Math.max(0, Math.floor((entry.expiry - Date.now()) / 1000));
   }
 
-  // List Operations
   lpush(key: string, ...values: RedisValue[]): number {
     let entry = this.store.get(key);
     if (!entry) {
@@ -110,7 +129,6 @@ class MiniRedis {
     return list.pop() ?? null;
   }
 
-  // Helper method to get list length
   llen(key: string): number {
     const entry = this.store.get(key);
     if (!entry) return 0;
@@ -118,6 +136,34 @@ class MiniRedis {
       throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
     }
     return (entry.value as RedisValue[]).length;
+  }
+
+  subscribe(channel: string, callback: Subscriber): void {
+    if (!this.subscribers.has(channel)) {
+      this.subscribers.set(channel, new Set());
+    }
+    this.subscribers.get(channel)?.add(callback);
+  }
+
+  unsubscribe(channel: string, callback: Subscriber): void {
+    const channelSubscribers = this.subscribers.get(channel);
+    if (channelSubscribers) {
+      channelSubscribers.delete(callback);
+      if (channelSubscribers.size === 0) {
+        this.subscribers.delete(channel);
+      }
+    }
+  }
+
+  publish(channel: string, message: string): number {
+    // Notify subscribers in current tab
+    this.notifySubscribers(channel, message);
+    
+    // Broadcast to other tabs
+    this.broadcastChannel.postMessage({ channel, message });
+    
+    const subscribers = this.subscribers.get(channel)?.size || 0;
+    return subscribers;
   }
 }
 
