@@ -106,6 +106,7 @@ const PubSubFeature = () => {
   const [subscribed, setSubscribed] = React.useState(false);
   const [newMessage, setNewMessage] = React.useState("");
   const [newChannel, setNewChannel] = React.useState("");
+  const userId = React.useRef(`User-${Math.random().toString(36).slice(2, 6)}`);
 
   React.useEffect(() => {
     const handleMessage = (message: string) => {
@@ -126,7 +127,8 @@ const PubSubFeature = () => {
   const publish = () => {
     if (!newMessage.trim()) return;
     setPublishing(true);
-    redis.publish(channel, newMessage);
+    const formattedMessage = `${userId.current}: ${newMessage}`;
+    redis.publish(channel, formattedMessage);
     setNewMessage("");
     setTimeout(() => setPublishing(false), 500);
   };
@@ -143,6 +145,14 @@ const PubSubFeature = () => {
 
   return (
     <div className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="p-2 bg-primary/5 rounded-lg text-sm text-muted-foreground"
+      >
+        Your ID: {userId.current}
+      </motion.div>
+
       <div className="flex flex-col gap-4">
         <div className="flex gap-2 items-center">
           <input
