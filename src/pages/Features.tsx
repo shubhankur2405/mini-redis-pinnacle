@@ -27,38 +27,88 @@ const FeatureSection = ({
 
 const RDBFeature = () => {
   const [saving, setSaving] = React.useState(false);
+  const [logs, setLogs] = React.useState<string[]>([]);
+  const [key, setKey] = React.useState('');
+  const [value, setValue] = React.useState('');
+  const [getKey, setGetKey] = React.useState('');
 
   const handleSave = () => {
     setSaving(true);
-    setTimeout(() => setSaving(false), 2000);
+    setTimeout(() => {
+      setLogs(prev => ['[INFO] Data persisted successfully in dump.rdb', ...prev]);
+      setSaving(false);
+    }, 1000);
+  };
+
+  const handleSet = () => {
+    if (!key.trim() || !value.trim()) return;
+    redis.set(key, value);
+    setLogs(prev => [`[SET] ${key} -> "${value}"`, ...prev]);
+    setKey('');
+    setValue('');
+  };
+
+  const handleGet = () => {
+    if (!getKey.trim()) return;
+    const result = redis.get(getKey);
+    setLogs(prev => [`[RDB] Restored key: ${getKey} -> "${result}"`, ...prev]);
+    setGetKey('');
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="Enter key"
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex-1"
+          />
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Enter value"
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex-1"
+          />
+          <Button onClick={handleSet}>
+            SET
+          </Button>
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={getKey}
+            onChange={(e) => setGetKey(e.target.value)}
+            placeholder="Enter key to get"
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex-1"
+          />
+          <Button onClick={handleGet}>
+            GET
+          </Button>
+        </div>
+
         <Button onClick={handleSave} disabled={saving}>
           <Database className="w-4 h-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Snapshot'}
+          {saving ? 'Saving...' : 'SAVE'}
         </Button>
-        {saving && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="flex items-center text-green-500"
-          >
-            <Check className="w-4 h-4 mr-1" />
-            Snapshot saved
-          </motion.div>
-        )}
+
+        <div className="h-48 overflow-y-auto space-y-2 bg-black/5 rounded-lg p-4">
+          {logs.map((log, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="font-mono text-sm"
+            >
+              {log}
+            </motion.div>
+          ))}
+        </div>
       </div>
-      <motion.div
-        className="relative h-32 bg-secondary/20 rounded-lg overflow-hidden"
-        initial={{ width: '0%' }}
-        animate={{ width: saving ? '100%' : '0%' }}
-        transition={{ duration: 2 }}
-      >
-        <div className="absolute inset-0 bg-primary/10" />
-      </motion.div>
     </div>
   );
 };
@@ -221,44 +271,87 @@ const PubSubFeature = () => {
 const TransactionFeature = () => {
   const [steps, setSteps] = React.useState<string[]>([]);
   const [executing, setExecuting] = React.useState(false);
+  const [inTransaction, setInTransaction] = React.useState(false);
+  const [command, setCommand] = React.useState('');
+  const [queue, setQueue] = React.useState<string[]>([]);
+
+  const startTransaction = () => {
+    setInTransaction(true);
+    setSteps(prev => ['[TRANSACTION] Started with MULTI', ...prev]);
+  };
+
+  const addCommand = () => {
+    if (!command.trim()) return;
+    setQueue(prev => [...prev, command]);
+    setSteps(prev => [`[QUEUED] ${command}`, ...prev]);
+    setCommand('');
+  };
 
   const executeTransaction = () => {
     setExecuting(true);
-    setSteps([]);
-    const transaction = [
-      'BEGIN TRANSACTION',
-      'SET key1 "value1"',
-      'INCR counter',
-      'COMMIT'
-    ];
-
-    transaction.forEach((step, index) => {
+    setSteps(prev => ['[TRANSACTION] Executing EXEC...', ...prev]);
+    
+    queue.forEach((cmd, index) => {
       setTimeout(() => {
-        setSteps(prev => [...prev, step]);
-        if (index === transaction.length - 1) {
+        setSteps(prev => [`[EXEC] Executed: ${cmd}`, ...prev]);
+        if (index === queue.length - 1) {
           setExecuting(false);
+          setInTransaction(false);
+          setQueue([]);
         }
-      }, index * 1000);
+      }, index * 500);
     });
+  };
+
+  const discardTransaction = () => {
+    setSteps(prev => ['[TRANSACTION] Discarded. No changes applied.', ...prev]);
+    setInTransaction(false);
+    setQueue([]);
   };
 
   return (
     <div className="space-y-4">
-      <Button onClick={executeTransaction} disabled={executing}>
-        <SplitSquareVertical className="w-4 h-4 mr-2" />
-        Execute Transaction
-      </Button>
-      <div className="space-y-2">
-        {steps.map((step, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="p-3 bg-secondary/10 rounded-lg font-mono text-sm"
-          >
-            {step}
-          </motion.div>
-        ))}
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-2">
+          <Button onClick={startTransaction} disabled={inTransaction}>
+            <SplitSquareVertical className="w-4 h-4 mr-2" />
+            MULTI
+          </Button>
+          <Button onClick={executeTransaction} disabled={!inTransaction || executing || queue.length === 0}>
+            EXEC
+          </Button>
+          <Button onClick={discardTransaction} disabled={!inTransaction} variant="destructive">
+            DISCARD
+          </Button>
+        </div>
+
+        {inTransaction && (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={command}
+              onChange={(e) => setCommand(e.target.value)}
+              placeholder="Enter command (e.g., SET key value)"
+              className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 flex-1"
+            />
+            <Button onClick={addCommand}>
+              Queue Command
+            </Button>
+          </div>
+        )}
+
+        <div className="h-48 overflow-y-auto space-y-2 bg-black/5 rounded-lg p-4">
+          {steps.map((step, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="font-mono text-sm"
+            >
+              {step}
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   );
