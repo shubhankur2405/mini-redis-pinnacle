@@ -10,9 +10,11 @@ A lightweight and minimal Redis clone built for learning and experimentation. Th
 ✅ **Persistence (RDB Snapshots)** - Saves database state at intervals  
 ✅ **Transactions** - Supports MULTI, EXEC, and DISCARD commands  
 ✅ **In-Memory Storage** - High-speed operations for fast access  
-✅ **Command-Line Interface (CLI)** - Simple interaction with the database  
 ✅ **Lightweight and Fast** - Optimized for performance and minimal resource usage  
-✅ **Publish-Subscribe (Pub/Sub)** - Real-time messaging between clients  
+✅ **Publish-Subscribe (Pub/Sub)** - Real-time messaging between clients
+✅ **Persistence** -Data is automatically saved to localStorage every 5 seconds,Data is loaded from localStorage when the Redis instance is created.All operations that modify data trigger a save to storage
+✅ **Eviction Policies** :Implemented both LRU (Least Recently Used) and LFU (Least Frequently Used) Default policy is LRU.Maximum entries limit (default: 1000).Automatic eviction when limit is reached
+.Tracking of access time and frequency for each entry  
 
 ## 🛠 Installation
 ```bash
