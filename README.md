@@ -12,7 +12,9 @@ A lightweight and minimal Redis clone built for learning and experimentation. Th
 ✅ **In-Memory Storage** - High-speed operations for fast access  
 ✅ **Lightweight and Fast** - Optimized for performance and minimal resource usage  
 ✅ **Publish-Subscribe (Pub/Sub)** - Real-time messaging between clients
+
 ✅ **Persistence** -Data is automatically saved to localStorage every 5 seconds,Data is loaded from localStorage when the Redis instance is created.All operations that modify data trigger a save to storage
+
 ✅ **Eviction Policies** :Implemented both LRU (Least Recently Used) and LFU (Least Frequently Used) Default policy is LRU.Maximum entries limit (default: 1000).Automatic eviction when limit is reached
 .Tracking of access time and frequency for each entry  
 
