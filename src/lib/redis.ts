@@ -1,84 +1,22 @@
-type RedisValue = string | number;
-type RedisEntry = {
-  value: RedisValue | RedisValue[];
-  type: 'string' | 'list';
-  expiry?: number;
-  lastAccessed: number; // For LRU
-  accessCount: number;  // For LFU
-};
 
-type Subscriber = (message: string) => void;
+import { RedisValue, RedisEntry, EvictionPolicy } from './types/redis';
+import { loadFromStorage, saveToStorage } from './utils/persistence';
+import { evictEntry, updateAccessMetrics } from './utils/eviction';
+import { PubSubHandler } from './utils/pubsub';
 
 class MiniRedis {
   private store: Map<string, RedisEntry>;
-  private subscribers: Map<string, Set<Subscriber>>;
-  private broadcastChannel: BroadcastChannel;
-  private maxEntries: number = 1000; // Maximum number of entries before eviction
-  private evictionPolicy: 'LRU' | 'LFU' = 'LRU'; // Default to LRU
+  private pubsub: PubSubHandler;
+  private maxEntries: number = 1000;
+  private evictionPolicy: EvictionPolicy = 'LRU';
 
   constructor() {
-    this.store = new Map();
-    this.subscribers = new Map();
-    this.broadcastChannel = new BroadcastChannel('redis-pubsub');
-    this.loadFromStorage();
+    this.store = loadFromStorage();
+    this.pubsub = new PubSubHandler();
     this.cleanupExpired();
     
-    // Listen for messages from other tabs
-    this.broadcastChannel.onmessage = (event) => {
-      const { channel, message } = event.data;
-      this.notifySubscribers(channel, message);
-    };
-
     // Persist data periodically
-    setInterval(() => this.saveToStorage(), 5000);
-  }
-
-  private loadFromStorage() {
-    try {
-      const savedData = localStorage.getItem('mini-redis-data');
-      if (savedData) {
-        const parsed = JSON.parse(savedData);
-        this.store = new Map(Object.entries(parsed));
-      }
-    } catch (error) {
-      console.error('Error loading data from storage:', error);
-    }
-  }
-
-  private saveToStorage() {
-    try {
-      const data = Object.fromEntries(this.store);
-      localStorage.setItem('mini-redis-data', JSON.stringify(data));
-    } catch (error) {
-      console.error('Error saving data to storage:', error);
-    }
-  }
-
-  private evict() {
-    if (this.store.size <= this.maxEntries) return;
-
-    const entries = Array.from(this.store.entries());
-    let keyToEvict: string;
-
-    if (this.evictionPolicy === 'LRU') {
-      // Sort by last accessed time and remove oldest
-      entries.sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
-      keyToEvict = entries[0][0];
-    } else {
-      // LFU: Sort by access count and remove least frequently used
-      entries.sort((a, b) => a[1].accessCount - b[1].accessCount);
-      keyToEvict = entries[0][0];
-    }
-
-    this.store.delete(keyToEvict);
-  }
-
-  private updateAccessMetrics(key: string) {
-    const entry = this.store.get(key);
-    if (entry) {
-      entry.lastAccessed = Date.now();
-      entry.accessCount = (entry.accessCount || 0) + 1;
-    }
+    setInterval(() => saveToStorage(this.store), 5000);
   }
 
   private cleanupExpired() {
@@ -92,17 +30,8 @@ class MiniRedis {
     }, 1000);
   }
 
-  private notifySubscribers(channel: string, message: string) {
-    const channelSubscribers = this.subscribers.get(channel);
-    if (channelSubscribers) {
-      for (const subscriber of channelSubscribers) {
-        subscriber(message);
-      }
-    }
-  }
-
   set(key: string, value: RedisValue, ttl?: number): string {
-    this.evict(); // Check if eviction is needed
+    evictEntry(this.store, this.maxEntries, this.evictionPolicy);
     const entry: RedisEntry = {
       value,
       type: 'string',
@@ -111,7 +40,7 @@ class MiniRedis {
       accessCount: 1
     };
     this.store.set(key, entry);
-    this.saveToStorage();
+    saveToStorage(this.store);
     return "OK";
   }
 
@@ -120,18 +49,18 @@ class MiniRedis {
     if (!entry) return null;
     if (entry.expiry && entry.expiry < Date.now()) {
       this.store.delete(key);
-      this.saveToStorage();
+      saveToStorage(this.store);
       return null;
     }
     if (entry.type !== 'string') return null;
     
-    this.updateAccessMetrics(key);
+    updateAccessMetrics(entry);
     return entry.value as RedisValue;
   }
 
   del(key: string): number {
     const result = this.store.delete(key);
-    this.saveToStorage();
+    saveToStorage(this.store);
     return result ? 1 : 0;
   }
 
@@ -143,7 +72,7 @@ class MiniRedis {
   }
 
   lpush(key: string, ...values: RedisValue[]): number {
-    this.evict();
+    evictEntry(this.store, this.maxEntries, this.evictionPolicy);
     let entry = this.store.get(key);
     if (!entry) {
       entry = { value: [], type: 'list', lastAccessed: Date.now(), accessCount: 1 };
@@ -154,13 +83,13 @@ class MiniRedis {
 
     const list = entry.value as RedisValue[];
     list.unshift(...values);
-    this.updateAccessMetrics(key);
-    this.saveToStorage();
+    updateAccessMetrics(entry);
+    saveToStorage(this.store);
     return list.length;
   }
 
   rpush(key: string, ...values: RedisValue[]): number {
-    this.evict();
+    evictEntry(this.store, this.maxEntries, this.evictionPolicy);
     let entry = this.store.get(key);
     if (!entry) {
       entry = { value: [], type: 'list', lastAccessed: Date.now(), accessCount: 1 };
@@ -171,8 +100,8 @@ class MiniRedis {
 
     const list = entry.value as RedisValue[];
     list.push(...values);
-    this.updateAccessMetrics(key);
-    this.saveToStorage();
+    updateAccessMetrics(entry);
+    saveToStorage(this.store);
     return list.length;
   }
 
@@ -186,9 +115,9 @@ class MiniRedis {
     const list = entry.value as RedisValue[];
     if (list.length === 0) return null;
     
-    this.updateAccessMetrics(key);
+    updateAccessMetrics(entry);
     const result = list.shift() ?? null;
-    this.saveToStorage();
+    saveToStorage(this.store);
     return result;
   }
 
@@ -202,9 +131,9 @@ class MiniRedis {
     const list = entry.value as RedisValue[];
     if (list.length === 0) return null;
     
-    this.updateAccessMetrics(key);
+    updateAccessMetrics(entry);
     const result = list.pop() ?? null;
-    this.saveToStorage();
+    saveToStorage(this.store);
     return result;
   }
 
@@ -214,49 +143,30 @@ class MiniRedis {
     if (entry.type !== 'list') {
       throw new Error('WRONGTYPE Operation against a key holding the wrong kind of value');
     }
-    this.updateAccessMetrics(key);
+    updateAccessMetrics(entry);
     return (entry.value as RedisValue[]).length;
   }
 
-  subscribe(channel: string, callback: Subscriber): void {
-    if (!this.subscribers.has(channel)) {
-      this.subscribers.set(channel, new Set());
-    }
-    this.subscribers.get(channel)?.add(callback);
+  subscribe(channel: string, callback: (message: string) => void): void {
+    this.pubsub.subscribe(channel, callback);
   }
 
-  unsubscribe(channel: string, callback: Subscriber): void {
-    const channelSubscribers = this.subscribers.get(channel);
-    if (channelSubscribers) {
-      channelSubscribers.delete(callback);
-      if (channelSubscribers.size === 0) {
-        this.subscribers.delete(channel);
-      }
-    }
+  unsubscribe(channel: string, callback: (message: string) => void): void {
+    this.pubsub.unsubscribe(channel, callback);
   }
 
   publish(channel: string, message: string): number {
-    // Notify subscribers in current tab
-    this.notifySubscribers(channel, message);
-    
-    // Broadcast to other tabs
-    this.broadcastChannel.postMessage({ channel, message });
-    
-    const subscribers = this.subscribers.get(channel)?.size || 0;
-    return subscribers;
+    return this.pubsub.publish(channel, message);
   }
 
-  // New method to configure eviction policy
-  setEvictionPolicy(policy: 'LRU' | 'LFU') {
+  setEvictionPolicy(policy: EvictionPolicy) {
     this.evictionPolicy = policy;
   }
 
-  // New method to set maximum entries
   setMaxEntries(max: number) {
     this.maxEntries = max;
   }
 
-  // New method to safely get metrics
   getMetrics(key: string) {
     const entry = this.store.get(key);
     if (entry) {
