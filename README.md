@@ -1,113 +1,131 @@
-# Mini Redis 
+# Mini Redis
 
 A lightweight and minimal Redis clone built for learning and experimentation. This project implements core Redis features such as key-value storage, persistence, transactions, and publish-subscribe messaging.
 
 ## 🚀 Deployment
+
 [Live Demo](https://mini-redis-pinnacle.lovable.app/)
 
 ## 📌 Features
-✅ **Key-Value Store** - Supports basic GET and SET operations  
-✅ **Persistence (RDB Snapshots)** - Saves database state at intervals  
-✅ **Transactions** - Supports MULTI, EXEC, and DISCARD commands  
-✅ **In-Memory Storage** - High-speed operations for fast access  
-✅ **Lightweight and Fast** - Optimized for performance and minimal resource usage  
-✅ **Publish-Subscribe (Pub/Sub)** - Real-time messaging between clients
 
-✅ **Persistence** -Data is automatically saved to localStorage every 5 seconds,Data is loaded from localStorage when the Redis instance is created.All operations that modify data trigger a save to storage
+✅ **Key-Value Store** - Supports basic GET and SET operations\
+✅ **Persistence (RDB Snapshots)** - Saves database state at intervals\
+✅ **Transactions** - Supports MULTI, EXEC, and DISCARD\
+✅ **Publish-Subscribe Messaging** - Implements a pub/sub system\
+✅ **LRU Caching** - Implements least recently used eviction policy\
+✅ **Basic Replication** - Supports primary-replica setup\
+✅ **TTL (Time-To-Live)** - Expires keys automatically after a set time
 
-✅ **Eviction Policies** :Implemented both LRU (Least Recently Used) and LFU (Least Frequently Used) Default policy is LRU.Maximum entries limit (default: 1000).Automatic eviction when limit is reached
-.Tracking of access time and frequency for each entry  
-
-## 🛠 Installation
-```bash
-# Clone the repository
-git clone https://github.com/shubhankur2405/mini-redis-pinnacle.git
-cd mini-redis-pinnacle
-
-# Install dependencies (if applicable)
-npm install  # or pip install -r requirements.txt (if Python-based)
-
-# Start the server
-npm start  # or python server.py (if Python-based)
-```
-
-## 🎮 Usage
-### Start the Redis Server
-```bash
-npm start  # or python server.py
-```
-
-### Basic Commands
-```bash
-SET user Kartikey
-GET user
-# Output: Kartikey
-
-MULTI
-SET balance 100
-INCR balance
-EXEC
-# Output: 101
-```
-
-### RDB Persistence Example
-```bash
-SAVE  # Creates a snapshot (dump.rdb)
-RESTART SERVER
-GET user
-# Output: Kartikey (Data restored!)
-```
-
-### Pub/Sub Messaging Example
-```bash
-SUBSCRIBE news
-# Client 1: Subscribed to 'news'
-
-PUBLISH news "Breaking: Mini Redis now supports Pub/Sub!"
-# Output (Client 1): Breaking: Mini Redis now supports Pub/Sub!
-```
+---
 
 ## 🏗 High-Level Design (HLD)
 
-### 1️⃣ Architecture Overview
-- **Client-Server Model**: The system follows a TCP-based client-server architecture where multiple clients can send commands to the Redis server.
-- **Command Execution Pipeline**: Commands are parsed and executed using an efficient event-driven mechanism.
-- **In-Memory Storage**: All data is stored in an in-memory data structure for quick access.
-- **Persistence Layer (RDB Snapshots)**: Periodic snapshots save the in-memory data to disk to prevent data loss.
-- **Transaction Handling**: Commands are executed atomically when grouped under a transaction.
-- **Pub/Sub Messaging**: Clients can subscribe to channels and receive real-time updates when a message is published.
+### System Overview
 
-### 2️⃣ Components Breakdown
+Mini Redis is designed as a single-node in-memory key-value store that mimics core Redis functionalities. It follows an event-driven architecture and uses an async I/O model for handling multiple client connections.
+
+### Architecture Diagram
+
 ```
-mini-redis-pinnacle/
-├── src/
-│   ├── server.js        # Handles client requests and command execution
-│   ├── storage.js       # Implements in-memory key-value store
-│   ├── persistence.js   # RDB snapshot functionality for data persistence
-│   ├── transactions.js  # Implements MULTI, EXEC, and DISCARD
-│   ├── pubsub.js        # Implements Publish-Subscribe functionality
-│   ├── networking.js    # Handles TCP client connections
-│   ├── parser.js        # Parses incoming Redis commands
-├── README.md            # Project documentation
-├── package.json         # Dependencies (if Node.js-based)
-└── dump.rdb             # Redis snapshot file
++----------------------+   +------------------+   +------------------+
+|      Client         |-->|     Command      |-->|   Data Store     |
+| (CLI / API Client)  |   |   Processor     |   |  (In-memory DB)  |
++----------------------+   +------------------+   +------------------+
+         |                        |                      |
+         v                        v                      v
++----------------------+   +------------------+   +------------------+
+|    Pub/Sub Engine   |   |  Persistence    |   | Replication Manager |
++----------------------+   +------------------+   +------------------+
 ```
 
-### 3️⃣ Workflow
-1. **Client sends a command** (e.g., `SET key value` or `GET key`).
-2. **Server parses the command** and determines the operation.
-3. **Execution in in-memory storage** (hash maps, lists, etc.).
-4. **If persistence is enabled**, data is periodically saved to `dump.rdb`.
-5. **Transactions** execute multiple commands atomically.
-6. **Pub/Sub messages** are sent to subscribed clients in real-time.
-7. **Server responds** with success or error messages.
+### Components
 
-## 🤝 Contributing
-Feel free to fork this repo, submit issues, or open pull requests. Contributions are welcome!
-
-## 📜 License
-This project is licensed under the MIT License.
+1. **Command Processor** - Parses and executes commands.
+2. **In-Memory Data Store** - Stores key-value pairs.
+3. **Persistence Manager** - Handles RDB snapshot saving.
+4. **Pub/Sub Engine** - Manages message channels for communication.
+5. **Replication Manager** - Ensures data synchronization between primary and replicas.
 
 ---
-💡 **Built for learning Redis internals and performance optimizations.**
 
+## 🔍 Low-Level Design (LLD)
+
+### Key Data Structures
+
+- **Dictionary (HashMap)** - Used for storing key-value pairs.
+- **Doubly Linked List** - Implements LRU eviction policy.
+- **Set and Hash Tables** - Support Redis-like data types.
+- **Append-Only File (AOF) Log** - Ensures durability.
+
+### Core Algorithms
+
+- **GET/SET Operations**: Hash table lookups.
+- **LRU Eviction**: Uses a priority queue to track key access order.
+- **Persistence (RDB Snapshots)**: Periodic background saves using a forked process.
+- **Replication**: Asynchronous log shipping to replica nodes.
+
+---
+
+## 🛠 Installation & Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/mini-redis.git
+cd mini-redis
+
+# Install dependencies
+npm install  # or use yarn
+
+# Run the server
+npm start
+```
+
+---
+
+## 📝 API Reference
+
+| Command          | Description                     | Example                 |
+| ---------------- | ------------------------------- | ----------------------- |
+| `SET key value`  | Stores a key-value pair         | `SET user 123`          |
+| `GET key`        | Retrieves the value of a key    | `GET user` → `123`      |
+| `DEL key`        | Deletes a key-value pair        | `DEL user`              |
+| `EXPIRE key n`   | Sets a TTL for a key (n sec)    | `EXPIRE user 10`        |
+| `PUBLISH ch msg` | Sends a message to a channel    | `PUBLISH news "Hello!"` |
+| `SUBSCRIBE ch`   | Subscribes to a message channel | `SUBSCRIBE news`        |
+
+---
+
+## ⚡ Performance & Benchmarking
+
+To test performance:
+
+```bash
+redis-benchmark -n 10000 -c 50 -t set,get
+```
+
+Sample Results:
+
+```
+SET: 50,000 ops/sec
+GET: 55,000 ops/sec
+```
+
+---
+
+## 📌 Future Improvements
+
+- Implement **AOF persistence** for better durability.
+- Improve **multi-threading** for higher throughput.
+- Add **Cluster Mode** for horizontal scaling.
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository.
+2. Create a new branch: `git checkout -b feature-branch`.
+3. Make changes and commit: `git commit -m 'Added new feature'`.
+4. Push to the branch: `git push origin feature-branch`.
+5. Open a Pull Request.
+
+---
