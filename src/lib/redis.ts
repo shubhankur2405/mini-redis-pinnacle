@@ -1,4 +1,3 @@
-
 type RedisValue = string | number;
 type RedisEntry = {
   value: RedisValue | RedisValue[];
@@ -255,6 +254,18 @@ class MiniRedis {
   // New method to set maximum entries
   setMaxEntries(max: number) {
     this.maxEntries = max;
+  }
+
+  // New method to safely get metrics
+  getMetrics(key: string) {
+    const entry = this.store.get(key);
+    if (entry) {
+      return {
+        lastAccessed: entry.lastAccessed,
+        accessCount: entry.accessCount
+      };
+    }
+    return null;
   }
 }
 

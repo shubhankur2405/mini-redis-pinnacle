@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { format } from 'date-fns';
+import { redis } from '@/lib/redis';
 
 interface ResponseViewProps {
   response: {
@@ -18,6 +20,27 @@ const ResponseView: React.FC<ResponseViewProps> = ({ response }) => {
     return result;
   };
 
+  const getEntryMetrics = (key: string) => {
+    return redis.getMetrics(key);
+  };
+
+  const renderMetrics = () => {
+    const tokens = response.command.split(' ');
+    const command = tokens[0].toUpperCase();
+    if (command === 'GET' && tokens[1]) {
+      const metrics = getEntryMetrics(tokens[1]);
+      if (metrics) {
+        return (
+          <div className="text-xs text-muted-foreground mt-2 space-y-1">
+            <div>Last Accessed: {format(metrics.lastAccessed, 'HH:mm:ss')}</div>
+            <div>Access Count: {metrics.accessCount}</div>
+          </div>
+        );
+      }
+    }
+    return null;
+  };
+
   return (
     <div className="glass-panel rounded-lg p-4 space-y-2">
       <div className="flex justify-between items-center text-sm text-muted-foreground">
@@ -27,6 +50,7 @@ const ResponseView: React.FC<ResponseViewProps> = ({ response }) => {
       <div className="response-text text-sm">
         <div className="text-primary-foreground/60">{`>`} {response.command}</div>
         <div className="mt-1 font-medium">{formatResult(response.result)}</div>
+        {renderMetrics()}
       </div>
     </div>
   );
